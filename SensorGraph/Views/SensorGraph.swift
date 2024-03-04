@@ -15,7 +15,8 @@ struct SensorGraph: View {
     private let gradients = [GradientColors.green,
                              GradientColors.purple,
                              GradientColors.orange]
-    
+    @Environment(\.scenePhase) var scenePhase
+
     init(sensor: MeasurableSensor) {
         self.sensor = sensor
         
@@ -36,19 +37,30 @@ struct SensorGraph: View {
             ).padding(5)
         }
         .onAppear {
-            sensor.startListening() { values in
-                for i in 0..<values.count {
-                    var stateValues = data[i].0
-                    stateValues.append(values[i])
-                    while (stateValues.count >= maxArraySize) {
-                        stateValues.remove(at: 0)
-                    }
-                    data[i] = (stateValues, gradients[i])
-                }
-            }
+            startListeningForSensor()
         }
         .onDisappear {
             sensor.stopListening()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                startListeningForSensor()
+            } else if newPhase == .background {
+                sensor.stopListening()
+            }
+        }
+    }
+    
+    func startListeningForSensor() {
+        sensor.startListening() { values in
+            for i in 0..<values.count {
+                var stateValues = data[i].0
+                stateValues.append(values[i])
+                while (stateValues.count >= maxArraySize) {
+                    stateValues.remove(at: 0)
+                }
+                data[i] = (stateValues, gradients[i])
+            }
         }
     }
 }
